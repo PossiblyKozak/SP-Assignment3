@@ -5,7 +5,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#include "../inc/DR.h"
+#include "../../Common/inc/Common.h"
 
 
 /* ----------------------------------------------------------------------
@@ -31,13 +31,16 @@ int main (int argc, char *argv[])
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
-  message_key = ftok (".", 'M');
+  message_key = ftok ("/.", 'M');
+  printf("%d", message_key);
   if (message_key == -1) 
   { 
     printf ("(SERVER) Cannot create key!\n");
     fflush (stdout);
     return 1;
   }
+
+  printf("%d\n", message_key);
 
   // create the message queue
   mid = msgget (message_key, IPC_CREAT | 0660);

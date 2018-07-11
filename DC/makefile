@@ -13,7 +13,7 @@ SRC_DIR = ./src
 INC_DIR = ./inc
 
 TARGET = ${BIN_DIR}/DC
-OBJS = ${OBJ_DIR}/DC.o ${OBJ_DIR}/DC.o
+OBJS = ${OBJ_DIR}/DC.o
 
 CC = cc
 CC_FLAGS = -I${INC_DIR} -g
