@@ -7,35 +7,23 @@
 #include <sys/msg.h>
 
 #include "../../Common/inc/Common.h"
+#include "../inc/DC.h"
 
 
-int send_message (int mid, int op, char *team, char *player, int jersey)
+int send_message (int message_id, int random_number)
 {
-  PLAYERDBMESSAGE msg;
-  int sizeofdata = sizeof (PLAYERDBMESSAGE) - sizeof (long);
+  pid_t pId = getpid();
+  theMessage msg;
+  msg.p = pId;
+  msg.randoNum = random_number;
 
-  // indicate message is destined for server
-  msg.type = TYPE_SERVERMESSAGE;
-
-  // indicate our returning type, used for filtering the queue
-  msg.callerType = (int)getpid();
-
-  // what are we doing?
-  msg.dbop = op;
-
-  // copy in associated data
-  strcpy (msg.team, team);
-  strcpy (msg.player, player);
-  msg.jersey = jersey;
-
-  // send the message to server
-  msgsnd (mid, (void *)&msg, sizeofdata, 0);
+  msgsnd (message_id, (void *)&msg, sizeof(theMessage), 0);
 
   return 0;
 }
 
 
-int get_response (int mid)
+/*int get_response (int mid)
 {
   PLAYERDBMESSAGE response;
   int sizeofdata = sizeof (PLAYERDBMESSAGE) - sizeof (long);
@@ -59,7 +47,7 @@ int get_response (int mid)
   }
 
   return 0;
-}
+}*/
 
 /* ----------------------------------------------------------------------
   This application will:
@@ -70,79 +58,70 @@ int get_response (int mid)
        b. msgClient1 will sleep for 5 seconds waiting for the msgServer1 to launch
     4. check for the queue again and begin to send messages
    ---------------------------------------------------------------------- */
-int main (int argc, char *argv[])
+int main ()
 {
-  pid_t p;
-  
-  int mid; // message ID
-  int done = 0;
-  int choice;
-  int j;
-  
   key_t message_key;
-  
-  char buffer[100];
-  char team[100];
-  char player[100];
+  int check_for_existing_que = 0;
+  int is_client_finished = 0;
+  srand((unsigned) time(&t));
+  int number_to_send = 0;
+  int checker = 0;
 
-  // get the unique token for the message queue (based on some agreed 
-  // upon "secret" information
-  message_key = ftok ("/.", 'M');
-  printf("%d\n", message_key);
-  if (message_key == -1) 
-  { 
-    printf ("(CLIENT) Cannot create key!\n");
-    fflush (stdout);
-    return 0;
-  }
-
-  // check if the msg queue already exists
-  mid = msgget (message_key, 0);
-  if (mid == -1) 
+  message_key = ftok (".", 'A');
+  if (message_key == -1)
   {
-    p = fork();
-    if (p == -1) 
-    {
-      printf ("(CLIENT) Can't fork!\n");
-      return 1;
-    }
-
-    if (p == 0)   // this is the CHILD process
-    {
-      // in context of child, launch the server app!!
-      execl ("./msgServer1", "msgServer1", NULL);
-      exit(0);  // after launching the process, the child is done
-    }
-    else
-    {
-        // This is the parent - it will sleep for 5 seconds, and then retry
-      // getting the message queue id. if this still
-      // fails, then something seriously wrong!
-      sleep (5);
-      mid = msgget (message_key, 0);
-      printf("%d\n", message_key);
-      if (mid == -1) 
-      {
-        printf ("(CLIENT) Can't find the message queue!\n");
-        return 2;
-      }
-
-        printf ("(CLIENT) Message queue ID: %d\n\n\n", mid);
-    }
+    printf("Error generating message key\n");
   }
+
+  check_for_existing_que = msgget (message_key, 0);
+
+  if (check_for_existing_que == -1) 
+  {
+    sleep (5);
+    check_for_existing_que = msgget (message_key, 0);
+    if (check_for_existing_que == -1) 
+    {
+      printf ("Cant find a queue, creating one...\n");
+      check_for_existing_que = msgget (message_key, IPC_CREAT | 0660); 
+      if (check_for_existing_que == -1)
+      {
+        printf("Can not create a queue.. Exiting\n");
+        return 0;
+      }
+    }
+
+    printf ("(CLIENT) Message queue ID: %d\n\n\n", check_for_existing_que);
+  }
+ 
 
   // main CLIENT processing loop
-  while (done == 0) 
+  while (is_client_finished == 0) 
   {
-    printf ("\n\nMenu\n\n");
-    printf ("1 ... Add Player to DBase\n");
-    printf ("2 ... Delete Player from DBase\n");
-    printf ("3 ... List Player(s) in DBase\n");
-    printf ("4 ... Quit Client App\n");
-    printf ("\n\nEnter Your Choice: ");
-    gets (buffer);
-    printf ("\n\n");
-    choice = atoi (buffer);
+    for (int x = 1; x <= 10; x++)
+    {
+      number_to_send = rand() % 7;
+
+      if (number_to_send == OFF_LINE)
+      {
+        checker = send_message(check_for_existing_que, number_to_send);
+        if (checker == ERROR_SENDING_MESSAGE)
+        {
+        	printf("There was an error sending the message\n");
+        	return 0;
+        }
+
+        msgctl (check_for_existing_que, IPC_RMID, (struct msqid_ds *)NULL);
+        return 0;
+      }
+
+      checker = send_message(check_for_existing_que, number_to_send);
+      if (checker == ERROR_SENDING_MESSAGE)
+      {
+       	    printf("There was an error sending the message\n");
+       	    break:
+      }
+    }
+    /*choice = atoi (buffer);
 
     switch (choice) 
     {
@@ -189,7 +168,7 @@ int main (int argc, char *argv[])
       {
          send_message (mid, OPERATION_EXIT, "", "", 0);
          get_response (mid);
-         done = 1;
+         is_client_finished = 1;
          break;
       }
     
@@ -198,7 +177,7 @@ int main (int argc, char *argv[])
          printf ("**WRONG CHOICE ... follow the rules!\n");
          break;
       }
-    }
+    }*/
   }
 
   return 0;
