@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <unistd.h>
 
 #include "../../Common/inc/Common.h"
 #include "../inc/DR.h"
@@ -65,12 +66,15 @@ int main (int argc, char *argv[])
     fflush (stdout);
 
     // receive the incoming message and process it
-    msgrcv (mid, &msg, sizeofdata, 1, 0);
+    if (msgrcv (mid, &msg, sizeofdata, 0, 0) != -1)
 
-    printf ("(SERVER) Got a message!\n");
-    fflush (stdout);
+    {
+      printf ("(SERVER) Got a message!\n");
+      fflush (stdout);
 
-    printf("%d\n", msg.randoNum);
+      printf("%d\n", msg.randoNum);
+    }
+    usleep(1500000);
 
 
 

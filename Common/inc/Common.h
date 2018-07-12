@@ -19,6 +19,16 @@ typedef struct tagDBMESSAGE
 	int resultcode;	// zero = success, any other number indicate failure
 } PLAYERDBMESSAGE;
 
+
+struct theMESSAGE 
+{
+	// the following is a requriement of UNIX/Linux
+	long type;
+
+	// now the specifics of our message
+	int randoNum;
+	pid_t p;
+};
 /* some constants to be used in the message passing and handling */
 #define TYPE_SERVERMESSAGE		1
 

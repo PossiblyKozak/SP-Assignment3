@@ -5,16 +5,6 @@
  * servers
  */
 
-struct theMESSAGE 
-{
-	// the following is a requriement of UNIX/Linux
-	long type;
-
-	// now the specifics of our message
-	int randoNum;
-	pid_t p;
-};
-
 //Define constants
 
 #define OFF_LINE 6

@@ -13,13 +13,13 @@
 
 int send_message (int message_id, int random_number)
 {
-  pid_t pId = getpid();
+  int pId = (int)getpid();
   struct theMESSAGE msg;
   msg.p = pId;
   msg.randoNum = random_number;
 
-  msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE), 0);
-
+  printf("Send Message: pID: %d, randoNum: %d\n", msg.p, msg.randoNum);
+  msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE) - sizeof(long), 0);  
   return 0;
 }
 
@@ -32,7 +32,7 @@ int main ()
   int number_to_send = 0;
   int checker = 0;
 
-  message_key = ftok (".", 'A');
+  message_key = ftok ("/.", 'A');
   if (message_key == -1)
   {
     printf("Error generating message key\n");
@@ -82,6 +82,9 @@ int main ()
        	    printf("There was an error sending the message\n");
        	    break;
       }
+
+
+      sleep((rand()%20) + 10);
    
   }
 
