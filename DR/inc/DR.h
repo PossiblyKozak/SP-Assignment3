@@ -5,20 +5,6 @@
  * servers
  */
 
-typedef struct tagDBMESSAGE 
-{
-	// the following is a requriement of UNIX/Linux
-	long type;
-
-	// now the specifics of our message
-	int callerType;	// we'll use this for tagging the outgoing type
-	int dbop;	// database operation!	
-	char player[100];
-	char team[100];
-	int jersey;
-	int resultcode;	// zero = success, any other number indicate failure
-} PLAYERDBMESSAGE;
-
 /* some constants to be used in the message passing and handling */
 #define TYPE_SERVERMESSAGE		1
 

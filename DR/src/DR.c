@@ -6,6 +6,7 @@
 #include <sys/msg.h>
 
 #include "../../Common/inc/Common.h"
+#include "../inc/DR.h"
 
 
 /* ----------------------------------------------------------------------
@@ -26,8 +27,8 @@ int main (int argc, char *argv[])
   
   key_t message_key;
   
-  PLAYERDBMESSAGE msg;
-  PLAYERDBMESSAGE response;
+  struct theMESSAGE msg;
+  struct theMESSAGE response;
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
@@ -55,7 +56,7 @@ int main (int argc, char *argv[])
   fflush (stdout);
 
   // compute size of data portion of message
-  sizeofdata = sizeof (PLAYERDBMESSAGE) - sizeof (long);
+  sizeofdata = sizeof (struct theMESSAGE) - sizeof (long);
 
   // loop until we are told to stop ...
   while (continueToRun == 1) 
@@ -64,12 +65,16 @@ int main (int argc, char *argv[])
     fflush (stdout);
 
     // receive the incoming message and process it
-    msgrcv (mid, &msg, sizeofdata, TYPE_SERVERMESSAGE, 0);
+    msgrcv (mid, &msg, sizeofdata, 1, 0);
 
     printf ("(SERVER) Got a message!\n");
     fflush (stdout);
 
-    switch (msg.dbop) 
+    printf("%d\n", msg.randoNum);
+
+
+
+    /*switch (msg.dbop) 
     {
       case OPERATION_ADD:
       {
@@ -132,14 +137,7 @@ int main (int argc, char *argv[])
   response.resultcode = DUMB_CLIENT_ERROR;
   break;
       }
-    }
-
-    // send the response back to client
-    printf ("(SERVER) Sending the response message now\n");
-    fflush (stdout);
-    msgsnd (mid, (void *)&response, sizeofdata, 0);
-    printf ("(SERVER) Done sending the response\n");
-    fflush (stdout);
+    } */
   }
 
   // done with the message queue - so clean-up
