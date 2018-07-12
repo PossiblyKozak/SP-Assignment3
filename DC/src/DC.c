@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -13,11 +14,11 @@
 int send_message (int message_id, int random_number)
 {
   pid_t pId = getpid();
-  theMessage msg;
+  struct theMESSAGE msg;
   msg.p = pId;
   msg.randoNum = random_number;
 
-  msgsnd (message_id, (void *)&msg, sizeof(theMessage), 0);
+  msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE), 0);
 
   return 0;
 }
@@ -63,7 +64,7 @@ int main ()
   key_t message_key;
   int check_for_existing_que = 0;
   int is_client_finished = 0;
-  srand((unsigned) time(&t));
+  srand((unsigned) time(NULL));
   int number_to_send = 0;
   int checker = 0;
 
@@ -104,7 +105,7 @@ int main ()
       if (number_to_send == OFF_LINE)
       {
         checker = send_message(check_for_existing_que, number_to_send);
-        if (checker == ERROR_SENDING_MESSAGE)
+        if (checker == 1)
         {
         	printf("There was an error sending the message\n");
         	return 0;
@@ -115,10 +116,10 @@ int main ()
       }
 
       checker = send_message(check_for_existing_que, number_to_send);
-      if (checker == ERROR_SENDING_MESSAGE)
+      if (checker == 1)
       {
        	    printf("There was an error sending the message\n");
-       	    break:
+       	    break;
       }
     }
     /*choice = atoi (buffer);

@@ -31,7 +31,7 @@ int main (int argc, char *argv[])
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
-  message_key = ftok ("/.", 'M');
+  message_key = ftok ("/.", 'A');
   printf("%d", message_key);
   if (message_key == -1) 
   { 
