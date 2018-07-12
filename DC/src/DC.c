@@ -23,42 +23,6 @@ int send_message (int message_id, int random_number)
   return 0;
 }
 
-
-/*int get_response (int mid)
-{
-  PLAYERDBMESSAGE response;
-  int sizeofdata = sizeof (PLAYERDBMESSAGE) - sizeof (long);
-
-  // get response
-  msgrcv (mid, (void *)&response, sizeofdata, getpid(), 0);
-  if (response.resultcode != 0) 
-  {
-    if(response.resultcode == SERVER_EXIT)
-    {
-      printf ("\n\n (CLIENT) SERVER is exiting ... %d\n", response.resultcode);
-    }
-    else
-    {
-      printf ("\n\n(CLIENT) ERROR: DB error code: %d\n", response.resultcode);
-    }
-  } 
-  else 
-  {
-    printf ("\n\n(CLIENT) Successful DB operation\n");
-  }
-
-  return 0;
-}*/
-
-/* ----------------------------------------------------------------------
-  This application will:
-    1. get the unique identifier for a message queue using an agreed upon secret key 
-    2. check that the queue exists
-    3. if the queue doesn't exist, then the process will fork()
-       a. and spawn a child process (msgServer1)
-       b. msgClient1 will sleep for 5 seconds waiting for the msgServer1 to launch
-    4. check for the queue again and begin to send messages
-   ---------------------------------------------------------------------- */
 int main ()
 {
   key_t message_key;
@@ -90,16 +54,13 @@ int main ()
         return 0;
       }
     }
-
-    printf ("(CLIENT) Message queue ID: %d\n\n\n", check_for_existing_que);
   }
- 
+ 	printf ("(CLIENT) Message queue ID: %d\n\n\n", check_for_existing_que);
 
   // main CLIENT processing loop
   while (is_client_finished == 0) 
   {
-    for (int x = 1; x <= 10; x++)
-    {
+    
       number_to_send = rand() % 7;
 
       if (number_to_send == OFF_LINE)
@@ -121,64 +82,7 @@ int main ()
        	    printf("There was an error sending the message\n");
        	    break;
       }
-    }
-    /*choice = atoi (buffer);
-
-    switch (choice) 
-    {
-      case OPERATION_ADD:
-      {
-        // gather data for ADD
-        printf ("Enter Team Name: ");
-        gets (team);
-        printf ("Enter Player's Last Name: ");
-        gets (player);
-        printf ("Enter Jersey #: ");
-        gets (buffer);
-        j = atoi (buffer);
-  
-        send_message (mid, OPERATION_ADD, team, player, j);
-        get_response (mid);
-        break;
-      }
-
-      case OPERATION_DELETE:
-      {
-         // gather data for DELETE
-         printf ("Enter Team Name: ");
-         gets (team);
-         printf ("Enter Player Name: ");
-         gets (player);
-         printf ("Enter Jersey #: ");
-         gets (buffer);
-         j = atoi (buffer);
-
-         send_message (mid, OPERATION_DELETE, team, player, j);
-         get_response (mid);
-         break;
-      }
-
-      case OPERATION_LIST:
-      {
-         send_message (mid, OPERATION_LIST, "", "", 0);
-         get_response (mid);
-         break;
-      }
-
-      case OPERATION_EXIT:
-      {
-         send_message (mid, OPERATION_EXIT, "", "", 0);
-         get_response (mid);
-         is_client_finished = 1;
-         break;
-      }
-    
-      default:
-      {
-         printf ("**WRONG CHOICE ... follow the rules!\n");
-         break;
-      }
-    }*/
+   
   }
 
   return 0;
