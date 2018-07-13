@@ -66,7 +66,7 @@ int main()
         }
       }
 	  }
-    sharedData = (MasterList *)shmat (sharedMemory_ID, NULL, 0);
+    sharedData = (MasterList *)shmat (sharedMemory_ID, NULL, 0);//Attaching to the shared data
 
 	  if (sharedData == NULL) 
 	  {
@@ -75,7 +75,7 @@ int main()
 	  }
 
 
-    while(1)
+    while(1) //Forever loop
     { 
       randomSleepTime = (rand() % 20) + 10;
       sleep(randomSleepTime); 
@@ -87,19 +87,28 @@ int main()
         fprintf(logFile,"%s : DX detected that msgQ is gone - assuming DR/DCs done", ctime(&currentTime));
         shmdt(sharedData);
         fclose(logFile);
+        break;
       }
 
-      randomWODnumber = rand() % 20;
-
-
-
-
-
+      randomWODnumber = rand() % 20;//Making a random number to pass to WOD function
+      //Below are the cases when we close the message que and exit
+      if (randomWODnumber == 10 || randomWODnumber == 17)
+      {
+        if((msgctl (messageQueKey, IPC_RMID, NULL) == -1))
+        {
+          printf("Could not close message que..Exiting/n");
+          break;
+        }
+        else //Below is where we log the what were doing
+        {
+          fprintf(logFile,"%s : DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting", ctime(&currentTime));
+          shmdt(sharedData);
+          break;
+        }
+        
+      }
+      wheelOfDestruction(randomWODnumber,sharedData,logFile);//Call the function to kill processes
     }
-    
-
-
-
 
   }
   else
@@ -107,11 +116,13 @@ int main()
     printf("Error opening file\n");
     return 0;
   }
+  fclose(logFile);
   return 0;
 }
 //This function handles the kills
-void wheelOfDestruction (int number, MasterList *p)
+void wheelOfDestruction (int number, MasterList *p, FILE *fp)
 {
+  time_t theTime = time(0);
   int taskCheck = 0;
   pid_t killID = 0;
   int retcode = 0;
@@ -181,8 +192,7 @@ void wheelOfDestruction (int number, MasterList *p)
     retcode = kill(killID, SIGHUP);
     if (!retcode)
     {
-      
+      fprintf(fp,"%s :WOD Action 11 - D-01 [%d] TERMINATED", ctime(&theTime),(int)killID);
     }
   }
-
 }
