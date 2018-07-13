@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <signal.h>
 #include "../inc/DX.h"
 #include "../../Common/inc/Common.h"
 
@@ -105,35 +106,80 @@ void main()
   }
   return 0;
 }
-
+//This function handles the kills
 void wheelOfDestruction (int number, MasterList *p)
 {
-  if ()
+  int taskCheck = 0;
+  pid_t killID = 0;
+  int retcode = 0;
   switch(number)
   {
     case 1 :
+    case 4 :
+    case 11:
     {
-
+      taskCheck = 1;
+      break;
+    }          
+    case 2 :
+    case 5 :
+    case 15:
+    {
+      taskCheck = 3;
+      break;
     }
-          
-    case 0 :
+    case 3 :
+    case 6 :
+    case 13:
+    {
+      taskCheck = 2;
+      break;
+    }
+    case 7 :
+    {
+      taskCheck = 4;
+      break;
+    }
+    case 9 :
+    {
+      taskCheck = 5;
+      break;
+    }
+    case 12 :
+    {
+      taskCheck = 6;
+      break;
+    }
+    case 14 :
+    {
+      taskCheck = 7;
+      break;
+    }
+    case 16 :
+    {
+      taskCheck = 8;
+      break;
+    }
+    case 18 :
+    {
+      taskCheck = 9;
+      break;
+    }
+    case 20 :
+    {
+      taskCheck = 10;
+      break;
+    }
 
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
-    case 0 :
-
+  }
+  if (taskCheck <= p->numberOfDCs)
+  {
+    killID= p->dc[1].dcProcessID; //Get the PID from the shared memory 
+    retcode = kill(killID, SIGHUP);
+    if (!retcode)
+    {
+      
+    }
   }
 
 }
