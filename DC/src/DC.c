@@ -63,7 +63,7 @@ int main ()
     
       number_to_send = rand() % 7;
 
-      if (number_to_send == OFF_LINE)
+      if (number_to_send == MACHINE_OFFLINE)
       {
         checker = send_message(check_for_existing_que, number_to_send);
         if (checker == 1)
@@ -72,7 +72,7 @@ int main ()
         	return 0;
         }
 
-        msgctl (check_for_existing_que, IPC_RMID, (struct msqid_ds *)NULL);
+        //msgctl (check_for_existing_que, IPC_RMID, (struct msqid_ds *)NULL);
         return 0;
       }
 

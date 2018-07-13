@@ -4,7 +4,10 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <time.h>
 
 #include "../../Common/inc/Common.h"
 #include "../inc/DR.h"
@@ -20,6 +23,12 @@
     local databast
     4. until the "STOP" command comes in - at which point, the queue is free'd and deleted
    ---------------------------------------------------------------------- */
+
+void printProcesses(MasterList *ml);
+void killIdleProcess(MasterList *ml);
+void killDCByPID(MasterList *ml, int pID);
+void interpretMessageCode(MasterList *ml, int randomNumber, int pID);
+
 int main (int argc, char *argv[])
 {
   int mid; // message ID
@@ -53,8 +62,41 @@ int main (int argc, char *argv[])
     return 2;
   }
 
-  printf ("(SERVER) Message queue ID: %d\n\n", mid);
+  printf ("(SERVER) Message queue ID: %d\n", mid);
   fflush (stdout);
+
+  int shmID;
+  key_t shmKey = ftok("/.", 16535);  
+  if (shmID = shmget(shmKey, 100, 0) == -1)
+  {
+    printf("Shared memory doe not exist, creating new block...\n");
+    shmID = shmget(shmKey, sizeof(MasterList), (IPC_CREAT | 0660));
+    shmctl(shmID, IPC_RMID, 0);
+    shmID = shmget(shmKey, sizeof(MasterList), (IPC_CREAT | 0660));
+    if (shmID == -1)
+    {
+      printf("Error creating the shared memory");
+    }
+  }
+  else
+  {
+    printf("Clearing Shared Memory...\n");
+  }
+
+  printf ("(SERVER) Shared Memory ID: %d\n", shmID);
+  MasterList *ml = (MasterList*)shmat(shmID, NULL, 0);
+  ml->numberOfDCs = 0;
+
+  if (ml == NULL)
+  {
+    printf("Cannot attach to shared memory!");
+  }
+  else
+  {
+    ml->msgQueueId = mid;
+    printf ("(SERVER) Message queue ID: %d\n", ml->msgQueueId);
+  }  
+
 
   // compute size of data portion of message
   sizeofdata = sizeof (struct theMESSAGE) - sizeof (long);
@@ -62,95 +104,141 @@ int main (int argc, char *argv[])
   // loop until we are told to stop ...
   while (continueToRun == 1) 
   {
-    printf ("(SERVER) Waiting for a message ...\n");
+    printf ("(SERVER) Waiting for a message ... %d\n", ml->numberOfDCs);
     fflush (stdout);
 
     // receive the incoming message and process it
-    if (msgrcv (mid, &msg, sizeofdata, 0, 0) != -1)
-
+    if (msgrcv (mid, &msg, sizeofdata, 0, IPC_NOWAIT) != -1)
     {
       printf ("(SERVER) Got a message!\n");
       fflush (stdout);
 
-      printf("%d\n", msg.randoNum);
+      printf("(SERVER) pID: %d\tRandom Number: %d\n", msg.p ,msg.randoNum);
+
+      bool isRecognized = false;
+      int i = 0;
+      for (; i < MAX_DC_ROLES && !isRecognized; i++)
+      {
+        if (ml->dc[i].dcProcessID != NULL)
+        {
+          if (ml->dc[i].dcProcessID == msg.p)
+          {
+            ml->dc[i].lastTimeHeardFrom = (int)time(NULL);
+            isRecognized = true;
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+      interpretMessageCode(ml, msg.randoNum, msg.p);
+
+      if (!isRecognized && ml->numberOfDCs != MAX_DC_ROLES)
+      {
+        printf("(SERVER) New PID Recognized (%d) Adding to shared memory at dc[%d]\n", msg.p, i);
+        ml->dc[i].dcProcessID = msg.p;
+        ml->dc[i].lastTimeHeardFrom = (int)time(NULL);
+        ml->numberOfDCs++;
+        printf("(SERVER) Current number of active DCs: %d\n", ml->numberOfDCs);
+        printProcesses(ml);
+      }   
     }
+    killIdleProcess(ml);
+    printProcesses(ml);
     usleep(1500000);
-
-
-
-    /*switch (msg.dbop) 
-    {
-      case OPERATION_ADD:
-      {
-  // add to player DB
-  printf ("(SERVER) Adding player %s, jersey %d, to team %s\n",
-    msg.player, msg.jersey, msg.team);
-  fflush (stdout);
-
-  // generate return message for confirmation
-  // assume success
-  response.type = msg.callerType; // set up for client filter
-  response.resultcode = 0;  // all is well!
-  break;
-      }
-      case OPERATION_DELETE:
-      {
-  // remove from player DB
-  printf ("(SERVER) Deleting player %s, jersey %d, from team %s\n",
-    msg.player, msg.jersey, msg.team);
-  fflush (stdout);
-
-  // generate random return message for confirmation
-  response.type = msg.callerType; // set up for client filter
-  response.resultcode = rand() % 3; // 3 codes ... 0, 1 or 2
-  break;
-      }
-      case OPERATION_LIST:
-      {
-  // list player(s) in DB -- notice there is no actual database being used
-  //  - nothing is being saved!!
-  printf ("(SERVER) Received command to list player(s) in DBase ... this is ackward ...\n");
-  fflush (stdout);
-
-  // generate random return message for confirmation
-  response.type = msg.callerType;   // set up for client filter
-  response.resultcode = rand() % 3; // 3 codes ... 0, 1 or 2
-  break;
-      }
-      case OPERATION_EXIT:
-      {
-  // client is shutting down
-  printf ("(SERVER) received word that the CLIENT is exiting ...");
-  fflush (stdout);
-
-  // generate random return message for confirmation
-  response.type = msg.callerType; // set up for client filter
-  response.resultcode = SERVER_EXIT;  // indicate that the server is exiting as well
-  continueToRun = 0;
-  break;
-      }
-
-      default:
-      {
-  // invalid DB command!
-  printf ("(SERVER) Invalid command! what are you thinking?\n");
-  fflush (stdout);
-
-  // generate random return message for confirmation
-  response.type = msg.callerType; // set up for client filter
-  response.resultcode = DUMB_CLIENT_ERROR;
-  break;
-      }
-    } */
   }
-
-  // done with the message queue - so clean-up
   msgctl (mid, IPC_RMID, NULL);
   printf ("(SERVER) Message QUEUE has been removed\n");
-  fflush (stdout);
-
+  fflush (stdout);  
   return 0;
 }
 
+void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
+{
+  switch (randomNumber)
+  {
+  case (EVERYTHING_OKAY):
+  {
+    printf("(%d) EVERYTHING OKAY", pID);
+    break;
+  }
+  case (HYDRAULIC_FAILURE):
+  {
+    printf("(%d) HYDRAULIC PRESSURE FAILURE", pID);
+    break;
+  }
+  case (SAFETY_BUTTON_FAILURE):
+  {
+    printf("(%d) SAFETY BUTTON FAILURE", pID);
+    break;
+  }
+  case (NO_RAW_MATERIAL):
+  {
+    printf("(%d) NO RAW MATERIAL IN PROCESS", pID);
+    break;
+  }
+  case (TEMP_OUT_OF_RANGE):
+  {
+    printf("(%d) OPERATING TEMPERATURE OUT OF RANGE", pID);
+    break;
+  }
+  case (OPERATOR_ERROR):
+  {
+    printf("(%d) OPERATOR ERROR", pID);
+    break;
+  }
+  case (MACHINE_OFFLINE):
+  {
+    printf("(%d) MACHINE IS OFF-LINE", pID);
+    killDCByPID(ml, pID);
+    break;
+  }
+  default:
+  {
+    printf("(%d) UNKNOWN COMMAND", pID);
+  }
+  }
+  printf("\n"); 
+}
 
+void killDCByPID(MasterList *ml, int pID)
+{
+  for (int i = 0; i < MAX_DC_ROLES; i++)
+  {
+    if (ml->dc[i].dcProcessID == pID)
+    {
+      printf("\nRemoving %d from index %d of the active DC list\n", pID, i);
+      memmove(&ml->dc[i], &ml->dc[i+1], sizeof(DCInfo) * (MAX_DC_ROLES - (i + 1)));              
+    }
+  }
+  ml->numberOfDCs--;
+}
 
+void killIdleProcess(MasterList *ml)
+{
+  for (int i = 0; i < MAX_DC_ROLES && i < ml->numberOfDCs; i++)
+  {
+    if (((int)time(NULL) - ml->dc[i].lastTimeHeardFrom) > 35)
+    {
+      printf("\nRemoving %d from index %d of the active DC list, idle for too long.\n", ml->dc[i].dcProcessID, i);
+      memmove(&ml->dc[i], &ml->dc[i+1], sizeof(DCInfo) * (MAX_DC_ROLES - (i + 1)));              
+      ml->numberOfDCs--;
+    }
+  }  
+}
+
+void printProcesses(MasterList *ml)
+{
+  for (int i = 0; i < MAX_DC_ROLES; i++)
+  {
+    if (ml->dc[i].dcProcessID != NULL)
+    {
+      printf("Process %d: (%d) Last heard from %d seconds ago\n", i, ml->dc[i].dcProcessID, (int)time(NULL) - ml->dc[i].lastTimeHeardFrom);
+    }
+    else
+    {
+      break;
+    }
+  }
+}
