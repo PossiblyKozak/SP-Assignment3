@@ -29,7 +29,15 @@
 #define OPERATOR_ERROR			5
 #define MACHINE_OFFLINE			6
 
-#define kTextFilePath			"/tmp/dataCorruptor.log"
+#define DC_LOG_FILE_PATH		"/tmp/dataCorruptor.log"
+#define DR_LOG_FILE_PATH		"/tmp/dataMonitor.log"
+
+#define SHARED_MEM_KEY			16535
+#define SHARED_MEM_LOCATION		"."
+
+#define QUEUE_KEY				'A'
+#define QUEUE_LOCATION			"."
+
 struct theMESSAGE 
 {
 	// the following is a requriement of UNIX/Linux

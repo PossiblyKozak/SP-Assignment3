@@ -1,1 +1,0 @@
-void wheelOfDestruction (int number, MasterList *p, FILE *fp);

@@ -13,16 +13,13 @@
 #include "../inc/DX.h"
 #include "../../Common/inc/Common.h"
 
-//#include "../inc/encodeSREC.h"
-
-#define MAX_FILE_NAME_LENGTH 100
-#define MAX_FLAGS 5
+void wheelOfDestruction (int number, MasterList *p, FILE *fp);
 
 int main()
 {
   srand((unsigned) time(NULL));
 
-  FILE *logFile = fopen(kTextFilePath,"w");
+  FILE *logFile = fopen(DC_LOG_FILE_PATH,"w");
   time_t currentTime = time(0);
 
   key_t sharedMemoryKey = 0;
@@ -38,8 +35,8 @@ int main()
 
   if (logFile) //If the log file was opened, continue on
   {
-    sharedMemoryKey = ftok("/.", 16535);//Get a key for the shared memory
-    messageQueKey = ftok("/.", 'A');//Get a key for the message que, used to check its existence
+    sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY);//Get a key for the shared memory
+    messageQueKey = ftok(QUEUE_LOCATION, QUEUE_KEY);//Get a key for the message que, used to check its existence
 
     if (sharedMemoryKey == -1)//Error checking against the shared memeory
     {
@@ -91,17 +88,20 @@ int main()
       }
 
       randomWODnumber = rand() % 20;//Making a random number to pass to WOD function
+      randomWODnumber = 17;
       //Below are the cases when we close the message que and exit
       if (randomWODnumber == 10 || randomWODnumber == 17)
       {
-        if((msgctl (messageQueKey, IPC_RMID, NULL) == -1))
+        if((msgctl (check_for_existing_que, IPC_RMID, NULL) == -1))
         {
           printf("Could not close message que..Exiting/n");
           break;
         }
         else //Below is where we log the what were doing
         {
-          fprintf(logFile,"%s : DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting", ctime(&currentTime));
+          char *newTime = ctime(&currentTime);
+          newTime[strlen(newTime)-1] = 0;
+          fprintf(logFile,"%s : DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting", newTime);
           shmdt(sharedData);
           break;
         }
@@ -126,6 +126,7 @@ void wheelOfDestruction (int number, MasterList *p, FILE *fp)
   int taskCheck = 0;
   pid_t killID = 0;
   int retcode = 0;
+  printf("Destructon number: %d\n", number);
   switch(number)
   {
     case 1 :
@@ -186,13 +187,16 @@ void wheelOfDestruction (int number, MasterList *p, FILE *fp)
     }
 
   }
+  printf("Actual index: %d\n", taskCheck);
   if (taskCheck <= p->numberOfDCs)
   {
-    killID= p->dc[1].dcProcessID; //Get the PID from the shared memory 
+    killID= p->dc[taskCheck].dcProcessID; //Get the PID from the shared memory 
     retcode = kill(killID, SIGHUP);
     if (!retcode)
     {
-      fprintf(fp,"%s :WOD Action 11 - D-01 [%d] TERMINATED", ctime(&theTime),(int)killID);
+      char *newTime = ctime(&theTime);
+      newTime[strlen(newTime)-1] = 0;
+      fprintf(fp,"%s : WOD Action %.2d - D-%.2d [%d] TERMINATED\n", newTime, number, taskCheck,(int)killID);
     }
   }
 }

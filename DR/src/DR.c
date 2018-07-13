@@ -28,6 +28,7 @@ void killIdleProcesses(MasterList *ml);
 void removeDCByPID(MasterList *ml, int pID);
 void interpretMessageCode(MasterList *ml, int randomNumber, int pID);
 void printProcesses(MasterList *ml);
+void isCurrentlyActivePID( int *i, bool *isRecognized, MasterList* ml, int pID);
 
 int main (int argc, char *argv[])
 {
@@ -42,7 +43,7 @@ int main (int argc, char *argv[])
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
-  message_key = ftok (".", 'A');
+  message_key = ftok (QUEUE_LOCATION, QUEUE_KEY);
   printf("%d", message_key);
   if (message_key == -1) 
   { 
@@ -66,10 +67,10 @@ int main (int argc, char *argv[])
   fflush (stdout);
 
   int shmID;
-  key_t shmKey = ftok("/.", 16535);  
+  key_t shmKey = ftok(".", SHARED_MEM_KEY);  
   if (shmID = shmget(shmKey, 100, 0) == -1)
   {
-    printf("Shared memory doe not exist, creating new block...\n");
+    printf("Shared memory doesn't not exist, creating new block...\n");
     shmID = shmget(shmKey, sizeof(MasterList), (IPC_CREAT | 0660));
     shmctl(shmID, IPC_RMID, 0);
     shmID = shmget(shmKey, sizeof(MasterList), (IPC_CREAT | 0660));
@@ -118,7 +119,7 @@ int main (int argc, char *argv[])
 
       bool isRecognized = false;
       int i = 0;
-      for (; i < MAX_DC_ROLES && !isRecognized; i++)
+      for (; i < MAX_DC_ROLES && !(isRecognized); i++) 
       {
         if (ml->dc[i].dcProcessID != NULL)
         {
@@ -148,11 +149,16 @@ int main (int argc, char *argv[])
     killIdleProcesses(ml);
     printProcesses(ml);
     usleep(1500000);
-  } while (ml->numberOfDCs > 0);
+  } while (ml->numberOfDCs > 0 && ((mid = msgget (message_key, 0)) != -1));
   msgctl (mid, IPC_RMID, NULL);
+  shmctl (shmID, IPC_RMID, NULL);
   printf ("(SERVER) Message QUEUE has been removed\n");
   fflush (stdout);  
   return 0;
+}
+
+void isCurrentlyActivePID( int *i, bool *isRecognized, MasterList* ml, int pID)
+{
 }
 
 void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
@@ -231,7 +237,7 @@ void killIdleProcesses(MasterList *ml)
 
 void printProcesses(MasterList *ml)
 {
-  for (int i = 0; i < MAX_DC_ROLES; i++)
+  for (int i = 0; i < MAX_DC_ROLES && i < ml->numberOfDCs; i++)
   {
     if (ml->dc[i].dcProcessID != NULL)
     {

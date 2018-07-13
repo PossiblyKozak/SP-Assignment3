@@ -19,8 +19,7 @@ int send_message (int message_id, int random_number)
   msg.randoNum = random_number;
 
   printf("Send Message: pID: %d, randoNum: %d\n", msg.p, msg.randoNum);
-  msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE) - sizeof(long), 0);  
-  return 0;
+  return msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE) - sizeof(long), 0);    
 }
 
 int main ()
@@ -32,7 +31,7 @@ int main ()
   int number_to_send = 0;
   int checker = 0;
 
-  message_key = ftok (".", 'A');
+  message_key = ftok (QUEUE_LOCATION, QUEUE_KEY);
   if (message_key == -1)
   {
     printf("Error generating message key\n");
@@ -58,7 +57,7 @@ int main ()
  	printf ("(CLIENT) Message queue ID: %d\n\n\n", check_for_existing_que);
 
   // main CLIENT processing loop
-  while (is_client_finished == 0) 
+  while (is_client_finished == 0 && (check_for_existing_que = msgget (message_key, 0)) != -1) 
   {
       number_to_send = rand() % 7;
       if (number_to_send == MACHINE_OFFLINE)
