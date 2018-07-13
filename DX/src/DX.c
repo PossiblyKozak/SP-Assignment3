@@ -1,12 +1,15 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <time.h>
 #include <signal.h>
+
 #include "../inc/DX.h"
 #include "../../Common/inc/Common.h"
 
@@ -15,7 +18,7 @@
 #define MAX_FILE_NAME_LENGTH 100
 #define MAX_FLAGS 5
 
-void main()
+int main()
 {
   srand((unsigned) time(NULL));
 
@@ -31,7 +34,7 @@ void main()
   int check_for_existing_que = 0;
   int randomSleepTime = 0;
   int randomWODnumber = 0;
-  struct MasterList *sharedData; 
+  MasterList *sharedData; 
 
   if (logFile) //If the log file was opened, continue on
   {

@@ -32,7 +32,7 @@ int main ()
   int number_to_send = 0;
   int checker = 0;
 
-  message_key = ftok ("/.", 'A');
+  message_key = ftok (".", 'A');
   if (message_key == -1)
   {
     printf("Error generating message key\n");
@@ -60,9 +60,7 @@ int main ()
   // main CLIENT processing loop
   while (is_client_finished == 0) 
   {
-    
       number_to_send = rand() % 7;
-
       if (number_to_send == MACHINE_OFFLINE)
       {
         checker = send_message(check_for_existing_que, number_to_send);
@@ -71,23 +69,16 @@ int main ()
         	printf("There was an error sending the message\n");
         	return 0;
         }
-
-        //msgctl (check_for_existing_que, IPC_RMID, (struct msqid_ds *)NULL);
         return 0;
       }
-
       checker = send_message(check_for_existing_que, number_to_send);
       if (checker == 1)
       {
        	    printf("There was an error sending the message\n");
        	    break;
       }
-
-
       sleep((rand()%20) + 10);
-   
   }
-
   return 0;
 }
 

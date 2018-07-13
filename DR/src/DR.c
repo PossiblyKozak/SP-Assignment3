@@ -24,10 +24,10 @@
     4. until the "STOP" command comes in - at which point, the queue is free'd and deleted
    ---------------------------------------------------------------------- */
 
-void printProcesses(MasterList *ml);
-void killIdleProcess(MasterList *ml);
-void killDCByPID(MasterList *ml, int pID);
+void killIdleProcesses(MasterList *ml);
+void removeDCByPID(MasterList *ml, int pID);
 void interpretMessageCode(MasterList *ml, int randomNumber, int pID);
+void printProcesses(MasterList *ml);
 
 int main (int argc, char *argv[])
 {
@@ -42,7 +42,7 @@ int main (int argc, char *argv[])
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
-  message_key = ftok ("/.", 'A');
+  message_key = ftok (".", 'A');
   printf("%d", message_key);
   if (message_key == -1) 
   { 
@@ -102,7 +102,8 @@ int main (int argc, char *argv[])
   sizeofdata = sizeof (struct theMESSAGE) - sizeof (long);
 
   // loop until we are told to stop ...
-  while (continueToRun == 1) 
+  sleep(10);
+  do
   {
     printf ("(SERVER) Waiting for a message ... %d\n", ml->numberOfDCs);
     fflush (stdout);
@@ -144,10 +145,10 @@ int main (int argc, char *argv[])
         printProcesses(ml);
       }   
     }
-    killIdleProcess(ml);
+    killIdleProcesses(ml);
     printProcesses(ml);
     usleep(1500000);
-  }
+  } while (ml->numberOfDCs > 0);
   msgctl (mid, IPC_RMID, NULL);
   printf ("(SERVER) Message QUEUE has been removed\n");
   fflush (stdout);  
@@ -191,7 +192,7 @@ void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
   case (MACHINE_OFFLINE):
   {
     printf("(%d) MACHINE IS OFF-LINE", pID);
-    killDCByPID(ml, pID);
+    removeDCByPID(ml, pID);
     break;
   }
   default:
@@ -202,7 +203,7 @@ void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
   printf("\n"); 
 }
 
-void killDCByPID(MasterList *ml, int pID)
+void removeDCByPID(MasterList *ml, int pID)
 {
   for (int i = 0; i < MAX_DC_ROLES; i++)
   {
@@ -215,7 +216,7 @@ void killDCByPID(MasterList *ml, int pID)
   ml->numberOfDCs--;
 }
 
-void killIdleProcess(MasterList *ml)
+void killIdleProcesses(MasterList *ml)
 {
   for (int i = 0; i < MAX_DC_ROLES && i < ml->numberOfDCs; i++)
   {

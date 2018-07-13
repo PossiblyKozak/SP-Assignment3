@@ -7,7 +7,7 @@
 #                  Assignment1
 # =======================================================
 
-BIN_DIR = ./bin
+BIN_DIR = ../Common/bin
 OBJ_DIR = ./obj
 SRC_DIR = ./src
 INC_DIR = ./inc

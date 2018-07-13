@@ -1,38 +1,48 @@
 #
 # this makefile will compile and and all source
-# found in the ~/develop/MyApp directory.  This represents a sample
+# found in the ~/Documents/workspace/Conestoga/PROG1970/Assignment1 directory.  This represents a sample
 # development directory structure and project
-# 
+#
 # =======================================================
-#                  MyApp Example
+#                  Assignment1
 # =======================================================
+
+BIN_DIR = ./bin
+OBJ_DIR = ./obj
+SRC_DIR = ./src
+INC_DIR = ./inc
+
+TARGET = ${BIN_DIR}/Common
+OBJS = ${OBJ_DIR}/Common.o
+
+CC = cc
+CC_FLAGS = -I${INC_DIR} -g
+
 # FINAL BINARY Target
-./bin/encodeInput : ./obj/encodeInput.o ./obj/encodeASM.o ./obj/encodeSREC.o
-	cc ./obj/encodeInput.o ./obj/encodeASM.o ./obj/encodeSREC.o -o ./bin/encodeInput
+${TARGET} : ${OBJS}
+	${CC} ${OBJS} -o $@
+
 #
 # =======================================================
 #                     Dependencies
-# =======================================================                     
+# =======================================================
+${OBJS}: ${OBJ_DIR}/%.o: ${SRC_DIR}/%.c
+	${CC} -c ${CC_FLAGS} $< -o $@
 
-./obj/encodeInput.o : ./src/encodeInput.c ./inc/encodeASM.h ./inc/encodeSREC.h
-	cc -c ./src/encodeInput.c -o ./obj/encodeInput.o
-
-./obj/encodeASM.o : ./src/encodeASM.c ./inc/encodeASM.h
-	cc -c ./src/encodeASM.c -o ./obj/encodeASM.o
-
-./obj/encodeSREC.o : ./src/encodeSREC.c ./inc/encodeSREC.h
-	cc -c ./src/encodeSREC.c -o ./obj/encodeSREC.o
 #
 # =======================================================
 # Other targets
-# =======================================================                     
-all : ./bin/encodeInput
+# =======================================================
+.PHONY : clean all
+
+all : ${TARGET}
 
 clean:
-	rm -f ./bin/*
-	rm -f ./obj/*.o
-	rm -f ./inc/*.h~
-	rm -f ./src/*.c~
+	rm -f ${BIN_DIR}/*
+	rm -f ${OBJ_DIR}/*.o
+	rm -f ${INC_DIR}/*.h~
+	rm -f ${SRC_DIR}/*.c~
+
 
 
 

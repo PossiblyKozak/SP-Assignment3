@@ -7,13 +7,13 @@
 #                  Assignment1
 # =======================================================
 
-BIN_DIR = ./bin
+BIN_DIR = ../Common/bin
 OBJ_DIR = ./obj
 SRC_DIR = ./src
 INC_DIR = ./inc
 
 TARGET = ${BIN_DIR}/DX
-OBJS = ${OBJ_DIR}/DX.o ${OBJ_DIR}/DX.o
+OBJS = ${OBJ_DIR}/DX.o
 
 CC = cc
 CC_FLAGS = -I${INC_DIR} -g

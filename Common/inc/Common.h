@@ -29,7 +29,7 @@
 #define OPERATOR_ERROR			5
 #define MACHINE_OFFLINE			6
 
-
+#define kTextFilePath			"/tmp/dataCorruptor.log"
 struct theMESSAGE 
 {
 	// the following is a requriement of UNIX/Linux
