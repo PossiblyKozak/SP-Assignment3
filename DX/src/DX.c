@@ -1,216 +1,168 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <sys/shm.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <time.h>
-#include <signal.h>
-
-#include "../inc/DX.h"
 #include "../../Common/inc/Common.h"
 
-void wheelOfDestruction (int number, MasterList *p, FILE *logFile);
+void wheelOfDestruction(int number, MasterList *p, FILE *logFile);
 void printCurrentTime(FILE* logFile);
 
 int main()
 {
-  srand((unsigned) time(NULL));
+	srand((unsigned)time(NULL));
 
-  FILE *logFile = fopen(DC_LOG_FILE_PATH,"w");
-  time_t currentTime = time(0);
+	FILE *logFile = fopen(DC_LOG_FILE_PATH, "w");
+	time_t currentTime = time(0);
+	key_t sharedMemoryKey, messageQueueKey;
 
-  key_t sharedMemoryKey = 0;
-  key_t messageQueKey = 0;
+	int sharedMemoryID, queueID, randomWODNumber;
+	MasterList *masterList;
 
-  int checker = 0;
-  int sharedMemory_ID = 0;
-  int process_ID = 0;
-  int check_for_existing_que = 0;
-  int randomSleepTime = 0;
-  int randomWODnumber = 0;
-  MasterList *sharedData; 
+	if (logFile) //If the log file was opened, continue on
+	{
+		//Get and check the Shared Memory, returning an error if unable to obtain it
+		if ((sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY)) == -1) { return 1; }
 
-  if (logFile) //If the log file was opened, continue on
-  {
-    sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY);//Get a key for the shared memory
-    messageQueKey = ftok(QUEUE_LOCATION, QUEUE_KEY);//Get a key for the message que, used to check its existence
+		//Get and check the Queue, returning an error if unable to obtain it
+		if ((messageQueueKey = ftok(QUEUE_LOCATION, QUEUE_KEY)) == -1) { return 1; }
 
-    if (sharedMemoryKey == -1)//Error checking against the shared memeory
-    {
-      printf("Could not get a key/n");
-      return 0;
-    }
-    if (messageQueKey == -1)//Error checking against the que
-    {
-      printf("Could not get a key/n");
-      return 0;
-    }
+		//Below is getting a Shared Memory ID to use and error checking at the same time
+		if ((sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), 0)) == -1)
+		{
+			//Trying to open the Shared Memory key 100 times, breaking if unsuccessful
+			for (int x = 0; x < 99; x++)
+			{
+				sleep(10);
+				if ((sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), 0)) != -1) { break; }
+			}
+		}
+		masterList = (MasterList*)shmat(sharedMemoryID, NULL, 0);	//Attaching to the Shared Memory data
 
-    //Below is getting a shared memory ID to use and error checking at the same time
-    if ((sharedMemory_ID = shmget (sharedMemoryKey, sizeof (MasterList), 0)) == -1) 
-	  {
-      //Below is a loop to keep trying to open the shared memory key
-		  for (int x = 0; x < 98; x++)
-      {
-        sleep(10);
-        sharedMemory_ID = shmget (sharedMemoryKey, sizeof (MasterList), 0);
-        if (sharedMemory_ID != -1)
-        { 
-          break;
-        }
-      }
-	  }
-    sharedData = (MasterList *)shmat (sharedMemory_ID, NULL, 0);//Attaching to the shared data
+		if (masterList == NULL) { return 1; }
 
-	  if (sharedData == NULL) 
-	  {
-	    printf ("(CORRUPTOR) Cannot attach to Shared-Memory!\n");
-	    return 0;
-	  }
+		while (1) //Forever loop
+		{
+			sleep((rand() % 20) + 10);
 
+			if ((queueID = msgget(messageQueueKey, 0)) == -1)
+			{
+				printCurrentTime(logFile);
+				fprintf(logFile, "DX detected that msgQ is gone - assuming DR/DCs done");
+				shmdt(masterList);
+				fclose(logFile);
+				break;
+			}
 
-    while(1) //Forever loop
-    { 
-      randomSleepTime = (rand() % 20) + 10;
-      sleep(randomSleepTime); 
+			randomWODNumber = rand() % 20;//Making a random number to pass to WOD function
+			//Below are the cases when we close the message que and exit
+			if (randomWODNumber == 10 || randomWODNumber == 17)
+			{
+				if ((msgctl(queueID, IPC_RMID, NULL) == -1))
+				{
+					printCurrentTime(logFile);
+					fprintf(logFile, "DX Failed to delete the msgQ, must already be deleted - exiting");
+					break;
+				}
+				else //Below is where we log the what were doing
+				{
+					printCurrentTime(logFile);
+					fprintf(logFile, "DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting");
+					shmdt(masterList);
+					break;
+				}
 
-      check_for_existing_que = msgget(messageQueKey, 0);
+			}
+			wheelOfDestruction(randomWODNumber, masterList, logFile);//Call the function to kill processes
+		}
 
-      if (check_for_existing_que == -1) 
-      {
-        printCurrentTime(logFile);
-        fprintf(logFile,"DX detected that msgQ is gone - assuming DR/DCs done");
-        shmdt(sharedData);
-        fclose(logFile);
-        break;
-      }
+	}
+	else { return 1; }
 
-      randomWODnumber = rand() % 20;//Making a random number to pass to WOD function
-      //Below are the cases when we close the message que and exit
-      if (randomWODnumber == 10 || randomWODnumber == 17)
-      {
-        if((msgctl (check_for_existing_que, IPC_RMID, NULL) == -1))
-        {
-          printf("Could not close message que..Exiting/n");
-          break;
-        }
-        else //Below is where we log the what were doing
-        {
-          char *newTime = ctime(&currentTime);
-          newTime[strlen(newTime)-1] = 0;
-          printCurrentTime(logFile);
-          fprintf(logFile,"DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting");
-          shmdt(sharedData);
-          break;
-        }
-        
-      }
-      wheelOfDestruction(randomWODnumber,sharedData,logFile);//Call the function to kill processes
-    }
-
-  }
-  else
-  {
-    printf("Error opening file\n");
-    return 0;
-  }
-  fclose(logFile);
-  return 0;
+	fclose(logFile);
+	return 0;
 }
-//This function handles the kills
-void wheelOfDestruction (int number, MasterList *p, FILE *logFile)
-{
-  time_t theTime = time(0);
-  int taskCheck = 0;
-  pid_t killID = 0;
-  int retcode = 0;
-  printf("Destructon number: %d\n", number);
-  switch(number)
-  {
-    case 1 :
-    case 4 :
-    case 11:
-    {
-      taskCheck = 1;
-      break;
-    }          
-    case 2 :
-    case 5 :
-    case 15:
-    {
-      taskCheck = 3;
-      break;
-    }
-    case 3 :
-    case 6 :
-    case 13:
-    {
-      taskCheck = 2;
-      break;
-    }
-    case 7 :
-    {
-      taskCheck = 4;
-      break;
-    }
-    case 9 :
-    {
-      taskCheck = 5;
-      break;
-    }
-    case 12 :
-    {
-      taskCheck = 6;
-      break;
-    }
-    case 14 :
-    {
-      taskCheck = 7;
-      break;
-    }
-    case 16 :
-    {
-      taskCheck = 8;
-      break;
-    }
-    case 18 :
-    {
-      taskCheck = 9;
-      break;
-    }
-    case 20 :
-    {
-      taskCheck = 10;
-      break;
-    }
 
-  }
-  printf("Actual index: %d\n", taskCheck);
-  if (taskCheck <= p->numberOfDCs)
-  {
-    killID= p->dc[taskCheck].dcProcessID; //Get the PID from the shared memory 
-    retcode = kill(killID, SIGHUP);
-    if (!retcode)
-    {
-      printCurrentTime(logFile);
-      fprintf(logFile,"WOD Action %.2d - D-%.2d [%d] TERMINATED\n", number, taskCheck,(int)killID);
-    }
-  }
+void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFile)
+{
+	int killIndex = 0;
+	pid_t killPID = 0;
+
+	switch (randomWODNumber)
+	{
+	case 1:
+	case 4:
+	case 11:
+	{
+		killIndex = 1;
+		break;
+	}
+	case 2:
+	case 5:
+	case 15:
+	{
+		killIndex = 3;
+		break;
+	}
+	case 3:
+	case 6:
+	case 13:
+	{
+		killIndex = 2;
+		break;
+	}
+	case 7:
+	{
+		killIndex = 4;
+		break;
+	}
+	case 9:
+	{
+		killIndex = 5;
+		break;
+	}
+	case 12:
+	{
+		killIndex = 6;
+		break;
+	}
+	case 14:
+	{
+		killIndex = 7;
+		break;
+	}
+	case 16:
+	{
+		killIndex = 8;
+		break;
+	}
+	case 18:
+	{
+		killIndex = 9;
+		break;
+	}
+	case 20:
+	{
+		killIndex = 10;
+		break;
+	}
+	}
+	if (killIndex <= masterList->numberOfDCs)
+	{
+		killPID = masterList->dc[killIndex - 1].dcProcessID; //Get the PID from the shared memory 
+
+		if (!kill(killPID, SIGHUP))
+		{
+			printCurrentTime(logFile);
+			fprintf(logFile, "WOD Action %.2d - D-%.2d [%d] TERMINATED\n", randomWODNumber, killIndex, (int)killPID);
+		}
+	}
 }
 
 void printCurrentTime(FILE* logFile)
 {
-  time_t timer;
-  struct tm* tm_info;
-  char newTime[28];
+	time_t currTime;
+	struct tm* currTimeInfo;
+	char formattedTimeString[28];
 
-  time(&timer);
-  tm_info = localtime(&timer);
+	time(&currTime);
+	currTimeInfo = localtime(&currTime);
 
-  strftime(newTime, 28, "[%Y-%m-%d %H:%M:%S]", tm_info);
-  fprintf(logFile, "%s : ", newTime);
+	strftime(formattedTimeString, 28, "[%Y-%m-%d %H:%M:%S]", currTimeInfo);
+	fprintf(logFile, "%s : ", formattedTimeString);
 }

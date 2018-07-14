@@ -1,4 +1,13 @@
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <time.h>
 
 #define MAX_DC_ROLES			10
 
@@ -19,13 +28,13 @@
 #define QUEUE_KEY				'A'
 #define QUEUE_LOCATION			"."
 
-typedef struct tagQueueMessage 
+typedef struct tagQueueMessage
 {
 	// the following is a requriement of UNIX/Linux
 	long type;
 
 	// now the specifics of our message
-	int randomNumber;
+	int messageValue;
 	pid_t pID;
 } QueueMessage;
 
@@ -37,7 +46,7 @@ typedef struct tagDCInfo
 
 typedef struct tagMasterList
 {
-	int msgQueueId;
+	int messageQueueID;
 	int numberOfDCs;
 	DCInfo dc[MAX_DC_ROLES];
 } MasterList;
