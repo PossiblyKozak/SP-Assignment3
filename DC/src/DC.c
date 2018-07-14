@@ -13,13 +13,13 @@
 
 int send_message (int message_id, int random_number)
 {
-  int pId = (int)getpid();
-  struct theMESSAGE msg;
-  msg.p = pId;
-  msg.randoNum = random_number;
+  int pID = (int)getpid();
+  QueueMessage SendingMessage;
+  SendingMessage.pID = pID;
+  SendingMessage.randomNumber = random_number;
 
-  printf("Send Message: pID: %d, randoNum: %d\n", msg.p, msg.randoNum);
-  return msgsnd (message_id, (void *)&msg, sizeof(struct theMESSAGE) - sizeof(long), 0);    
+  printf("Send Message: pID: %d, randomNumber: %d\n", SendingMessage.pID, SendingMessage.randomNumber);
+  return msgsnd (message_id, (void *)&SendingMessage, sizeof(QueueMessage) - sizeof(long), 0);    
 }
 
 int main ()

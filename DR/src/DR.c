@@ -24,27 +24,29 @@
     4. until the "STOP" command comes in - at which point, the queue is free'd and deleted
    ---------------------------------------------------------------------- */
 
-void killIdleProcesses(MasterList *ml);
-void removeDCByPID(MasterList *ml, int pID);
-void interpretMessageCode(MasterList *ml, int randomNumber, int pID);
+void killIdleProcesses(MasterList *ml, FILE* logFile);
+void removeDCByPID(MasterList *ml, int pID, FILE* logFile);
+void interpretMessageCode(MasterList *ml, int randomNumber, int pID, int i, FILE* logFile);
 void printProcesses(MasterList *ml);
 void isCurrentlyActivePID( int *i, bool *isRecognized, MasterList* ml, int pID);
+void printCurrentTime(FILE* logFile);
+
 
 int main (int argc, char *argv[])
 {
   int mid; // message ID
   int sizeofdata;
   int continueToRun = 1;
+  FILE *logFile = fopen(DR_LOG_FILE_PATH, "w");
   
   key_t message_key;
   
-  struct theMESSAGE msg;
-  struct theMESSAGE response;
+  QueueMessage receivedMessage;
+  QueueMessage response;
 
   // get the unique token for the message queue (based on some agreed 
   // upon "secret" information  
   message_key = ftok (QUEUE_LOCATION, QUEUE_KEY);
-  printf("%d", message_key);
   if (message_key == -1) 
   { 
     printf ("(SERVER) Cannot create key!\n");
@@ -100,56 +102,56 @@ int main (int argc, char *argv[])
 
 
   // compute size of data portion of message
-  sizeofdata = sizeof (struct theMESSAGE) - sizeof (long);
+  sizeofdata = sizeof (QueueMessage) - sizeof (long);
 
   // loop until we are told to stop ...
   sleep(10);
+  bool isQueueValid = true;
   do
   {
     printf ("(SERVER) Waiting for a message ... %d\n", ml->numberOfDCs);
-    fflush (stdout);
+    fflush (stdout);    
 
     // receive the incoming message and process it
-    if (msgrcv (mid, &msg, sizeofdata, 0, IPC_NOWAIT) != -1)
+    if (msgrcv (mid, &receivedMessage, sizeofdata, 0, IPC_NOWAIT) != -1)
     {
       printf ("(SERVER) Got a message!\n");
       fflush (stdout);
 
-      printf("(SERVER) pID: %d\tRandom Number: %d\n", msg.p ,msg.randoNum);
+      printf("(SERVER) pID: %d\tRandom Number: %d\n", receivedMessage.pID ,receivedMessage.randomNumber);
 
       bool isRecognized = false;
       int i = 0;
-      for (; i < MAX_DC_ROLES && !(isRecognized); i++) 
-      {
-        if (ml->dc[i].dcProcessID != NULL)
-        {
-          if (ml->dc[i].dcProcessID == msg.p)
-          {
-            ml->dc[i].lastTimeHeardFrom = (int)time(NULL);
-            isRecognized = true;
-          }
-        }
-        else
-        {
-          break;
-        }
-      }
-      interpretMessageCode(ml, msg.randoNum, msg.p);
+      isCurrentlyActivePID(&i, &isRecognized, ml, receivedMessage.pID);
+      interpretMessageCode(ml, receivedMessage.randomNumber, receivedMessage.pID, i, logFile);
 
       if (!isRecognized && ml->numberOfDCs != MAX_DC_ROLES)
       {
-        printf("(SERVER) New PID Recognized (%d) Adding to shared memory at dc[%d]\n", msg.p, i);
-        ml->dc[i].dcProcessID = msg.p;
+        printCurrentTime(logFile);
+        fprintf(logFile, "DC-%.2d [%d] added to the master list - NEW DC - Status 0 (Everything is OK)\n", i + 1, receivedMessage.pID);
+        printf("(SERVER) New PID Recognized (%d) Adding to shared memory at dc[%d]\n", receivedMessage.pID, i);
+        ml->dc[i].dcProcessID = receivedMessage.pID;
         ml->dc[i].lastTimeHeardFrom = (int)time(NULL);
         ml->numberOfDCs++;
         printf("(SERVER) Current number of active DCs: %d\n", ml->numberOfDCs);
         printProcesses(ml);
       }   
     }
-    killIdleProcesses(ml);
-    printProcesses(ml);
+    else
+    {
+      isQueueValid = false;
+    }
+    if (ml->numberOfDCs != 0)
+    {
+      isQueueValid = true;
+    }
+    killIdleProcesses(ml, logFile);
+    printProcesses(ml); 
     usleep(1500000);
-  } while (ml->numberOfDCs > 0 && ((mid = msgget (message_key, 0)) != -1));
+  } while (isQueueValid && ((mid = msgget (message_key, 0)) != -1));
+
+  printCurrentTime(logFile);
+  fprintf(logFile, "All DCs have gone offline or terminated - DR TERMINATING");
   msgctl (mid, IPC_RMID, NULL);
   shmctl (shmID, IPC_RMID, NULL);
   printf ("(SERVER) Message QUEUE has been removed\n");
@@ -159,46 +161,82 @@ int main (int argc, char *argv[])
 
 void isCurrentlyActivePID( int *i, bool *isRecognized, MasterList* ml, int pID)
 {
+  for (; *i < MAX_DC_ROLES && !(*isRecognized); (*i)++) 
+  {
+    if (ml->dc[*i].dcProcessID != NULL)
+    {
+      if (ml->dc[*i].dcProcessID == pID)
+      {
+        ml->dc[*i].lastTimeHeardFrom = (int)time(NULL);
+        *isRecognized = true;
+      }
+    }
+    else
+    {
+      break;
+    }
+  }
 }
 
-void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
+void printCurrentTime(FILE* logFile)
 {
+  time_t timer;
+  struct tm* tm_info;
+  char newTime[28];
+
+  time(&timer);
+  tm_info = localtime(&timer);
+
+  strftime(newTime, 28, "[%Y-%m-%d %H:%M:%S]", tm_info);
+  fprintf(logFile, "%s : ", newTime);
+}
+
+void interpretMessageCode(MasterList *ml, int randomNumber, int pID, int i, FILE* logFile)
+{
+  printCurrentTime(logFile);
   switch (randomNumber)
   {
   case (EVERYTHING_OKAY):
   {
-    printf("(%d) EVERYTHING OKAY", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 0 (Everything is OK)\n", i + 1, pID);
+    printf("(SERVER) (%d) EVERYTHING OKAY", pID);
     break;
   }
   case (HYDRAULIC_FAILURE):
   {
-    printf("(%d) HYDRAULIC PRESSURE FAILURE", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 1 (Hydraulic Pressure Failure)\n", i + 1, pID);
+    printf("(SERVER) (%d) HYDRAULIC PRESSURE FAILURE", pID);
     break;
   }
   case (SAFETY_BUTTON_FAILURE):
   {
-    printf("(%d) SAFETY BUTTON FAILURE", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 2 (Safety Button Failure)\n", i + 1, pID);
+    printf("(SERVER) (%d) SAFETY BUTTON FAILURE", pID);
     break;
   }
   case (NO_RAW_MATERIAL):
   {
-    printf("(%d) NO RAW MATERIAL IN PROCESS", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 3 (No Raw Material in the Process)\n", i + 1, pID);
+    printf("(SERVER) (%d) NO RAW MATERIAL IN PROCESS", pID);
     break;
   }
   case (TEMP_OUT_OF_RANGE):
   {
-    printf("(%d) OPERATING TEMPERATURE OUT OF RANGE", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 4 (Operating Temperatures Out of Range)\n", i + 1, pID);
+    printf("(SERVER) (%d) OPERATING TEMPERATURE OUT OF RANGE", pID);
     break;
   }
   case (OPERATOR_ERROR):
   {
-    printf("(%d) OPERATOR ERROR", pID);
+    fprintf(logFile, "DC-%.2d [%d] updated in the master list - MSG RECEIVED - Status 5 (Operator Error)\n", i + 1, pID);
+    printf("(SERVER) (%d) OPERATOR ERROR", pID);
     break;
   }
   case (MACHINE_OFFLINE):
   {
-    printf("(%d) MACHINE IS OFF-LINE", pID);
-    removeDCByPID(ml, pID);
+    fprintf(logFile, "DC-%.2d [%d] has gone OFFLINE - removing from master-list\n", i + 1, pID);
+    printf("(SERVER) (%d) MACHINE IS OFF-LINE", pID);
+    removeDCByPID(ml, pID, logFile);
     break;
   }
   default:
@@ -209,12 +247,13 @@ void interpretMessageCode(MasterList *ml, int randomNumber, int pID)
   printf("\n"); 
 }
 
-void removeDCByPID(MasterList *ml, int pID)
+void removeDCByPID(MasterList *ml, int pID, FILE* logFile)
 {
   for (int i = 0; i < MAX_DC_ROLES; i++)
   {
     if (ml->dc[i].dcProcessID == pID)
     {
+      //fprintf(logFile, "DC-%.2d [%d] has gone OFFLINE - removing from master-list", i + 1, ml->dc[i].dcProcessID);
       printf("\nRemoving %d from index %d of the active DC list\n", pID, i);
       memmove(&ml->dc[i], &ml->dc[i+1], sizeof(DCInfo) * (MAX_DC_ROLES - (i + 1)));              
     }
@@ -222,12 +261,14 @@ void removeDCByPID(MasterList *ml, int pID)
   ml->numberOfDCs--;
 }
 
-void killIdleProcesses(MasterList *ml)
+void killIdleProcesses(MasterList *ml, FILE* logFile)
 {
   for (int i = 0; i < MAX_DC_ROLES && i < ml->numberOfDCs; i++)
   {
     if (((int)time(NULL) - ml->dc[i].lastTimeHeardFrom) > 35)
     {
+      printCurrentTime(logFile);
+      fprintf(logFile, "DC-%.2d [%d] removed from master list - NON-RESPONSIVE\n", i + 1, ml->dc[i].dcProcessID);
       printf("\nRemoving %d from index %d of the active DC list, idle for too long.\n", ml->dc[i].dcProcessID, i);
       memmove(&ml->dc[i], &ml->dc[i+1], sizeof(DCInfo) * (MAX_DC_ROLES - (i + 1)));              
       ml->numberOfDCs--;

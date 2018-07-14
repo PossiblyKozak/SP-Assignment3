@@ -13,7 +13,8 @@
 #include "../inc/DX.h"
 #include "../../Common/inc/Common.h"
 
-void wheelOfDestruction (int number, MasterList *p, FILE *fp);
+void wheelOfDestruction (int number, MasterList *p, FILE *logFile);
+void printCurrentTime(FILE* logFile);
 
 int main()
 {
@@ -81,14 +82,14 @@ int main()
 
       if (check_for_existing_que == -1) 
       {
-        fprintf(logFile,"%s : DX detected that msgQ is gone - assuming DR/DCs done", ctime(&currentTime));
+        printCurrentTime(logFile);
+        fprintf(logFile,"DX detected that msgQ is gone - assuming DR/DCs done");
         shmdt(sharedData);
         fclose(logFile);
         break;
       }
 
       randomWODnumber = rand() % 20;//Making a random number to pass to WOD function
-      randomWODnumber = 17;
       //Below are the cases when we close the message que and exit
       if (randomWODnumber == 10 || randomWODnumber == 17)
       {
@@ -101,7 +102,8 @@ int main()
         {
           char *newTime = ctime(&currentTime);
           newTime[strlen(newTime)-1] = 0;
-          fprintf(logFile,"%s : DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting", newTime);
+          printCurrentTime(logFile);
+          fprintf(logFile,"DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting");
           shmdt(sharedData);
           break;
         }
@@ -120,7 +122,7 @@ int main()
   return 0;
 }
 //This function handles the kills
-void wheelOfDestruction (int number, MasterList *p, FILE *fp)
+void wheelOfDestruction (int number, MasterList *p, FILE *logFile)
 {
   time_t theTime = time(0);
   int taskCheck = 0;
@@ -194,9 +196,21 @@ void wheelOfDestruction (int number, MasterList *p, FILE *fp)
     retcode = kill(killID, SIGHUP);
     if (!retcode)
     {
-      char *newTime = ctime(&theTime);
-      newTime[strlen(newTime)-1] = 0;
-      fprintf(fp,"%s : WOD Action %.2d - D-%.2d [%d] TERMINATED\n", newTime, number, taskCheck,(int)killID);
+      printCurrentTime(logFile);
+      fprintf(logFile,"WOD Action %.2d - D-%.2d [%d] TERMINATED\n", number, taskCheck,(int)killID);
     }
   }
+}
+
+void printCurrentTime(FILE* logFile)
+{
+  time_t timer;
+  struct tm* tm_info;
+  char newTime[28];
+
+  time(&timer);
+  tm_info = localtime(&timer);
+
+  strftime(newTime, 28, "[%Y-%m-%d %H:%M:%S]", tm_info);
+  fprintf(logFile, "%s : ", newTime);
 }
