@@ -1,3 +1,14 @@
+//FILE :DR.c
+//PROJECT : PROG1970 - Assignment #3
+//PROGRAMMER : Alex Kozak and Attila Katona
+//FIRST VERSION : 2018-06-16
+//DESCRIPTION :	The data reader (DR) program’s purpose is to monitor its incoming message queue for the varying
+//				statuses of the different Hoochamacallit machines on the shop floor. It will keep track of the number
+//				of different machines present in the system, and each new message it gets from a machine, it reports
+//				it findings to a data monitoring log file. The DR application is solely responsible for creating
+//				its incoming message queue and when it detects that all of its feeding machines have gone off-line, the
+//				DR application will free up the message queue, release its shared memory and the DR application will
+//				terminate.
 #include "../../Common/inc/Common.h"
 
 void killIdleProcesses(MasterList *ml, FILE* logFile);
@@ -110,7 +121,14 @@ void isCurrentlyActivePID(int *masterListIndex, bool *isRecognized, MasterList* 
 		}
 	}
 }
-
+// FUNCTION : printCurrentTime
+// DESCRIPTION : This function will generate the time and date formatted to the project standards.
+//				 It will then print this time and date to the logfile.
+//
+// PARAMETERS :	FILE* logfile : A pointer to the log file for logging the different events of the program
+//				
+// RETURNS : Void
+//
 void printCurrentTime(FILE* logFile)
 {
 	time_t currTime;
@@ -169,7 +187,7 @@ void interpretMessageCode(MasterList *masterList, int messageValue, int pID, int
 		break;
 	}
 	default:
-		fprintf(logFile, "UNKNOWN COMMAND\n", masterListIndex + 1, pID);
+		fprintf(logFile, "UNKNOWN COMMAND %.2d [%d]\n", masterListIndex + 1, pID);
 	}
 	printf("\n");
 }

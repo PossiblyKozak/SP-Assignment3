@@ -1,3 +1,12 @@
+//FILE :DX.c
+//PROJECT : PROG1970 - Assignment #3
+//PROGRAMMER : Attila Katona and Alex Kozak
+//FIRST VERSION : 2018-06-16
+//DESCRIPTION :	This file is the data corruptor and its purpose is to gain knowledge of the 
+//				resources and processes involved in the program. It will randomly decide
+//				between a set of allowable corruptions, including : Kill a DC process
+//																	Delete the message queue.
+//
 #include "../../Common/inc/Common.h"
 
 void wheelOfDestruction(int number, MasterList *p, FILE *logFile);
@@ -5,7 +14,7 @@ void printCurrentTime(FILE* logFile);
 
 int main()
 {
-	srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL)); //Initiate the random number generator 
 
 	FILE *logFile = fopen(DC_LOG_FILE_PATH, "w");
 	time_t currentTime = time(0);
@@ -36,7 +45,7 @@ int main()
 
 		if (masterList == NULL) { return 1; }
 
-		while (1) //Forever loop
+		while (1) //Forever loop, will break when msgQ is gone
 		{
 			sleep((rand() % 20) + 10);
 
@@ -51,7 +60,7 @@ int main()
 
 			randomWODNumber = rand() % 20;//Making a random number to pass to WOD function
 			//Below are the cases when we close the message que and exit
-			if (randomWODNumber == 10 || randomWODNumber == 17)
+			if (randomWODNumber == DELETE_MSGQ_10 || randomWODNumber == DELETE_MSGQ_17)
 			{
 				if ((msgctl(queueID, IPC_RMID, NULL) == -1))
 				{
@@ -78,6 +87,18 @@ int main()
 	return 0;
 }
 
+// FUNCTION : wheelOfDestruction
+// DESCRIPTION : This is the main processing function. It will take a random number and peform the
+//				 action that the number represents. All numbers represent killing of a process.
+//				 The random number passed is what determiens which process of DC to kill.
+//
+// PARAMETERS :	int randomWODnumber : Holds a random integer number. 1 to 20, except 0,8,10,17,19
+//				MasterList* masterlist : The pointer to a struct that holds the process IDs of the open programs
+//										 that need to be killed. DC processes only.
+//				FILE* logfile : A pointer to the log file for logging what was killed and when.
+//				
+// RETURNS : Void
+//
 void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFile)
 {
 	int killIndex = 0;
@@ -142,7 +163,7 @@ void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFi
 		break;
 	}
 	}
-	if (killIndex <= masterList->numberOfDCs)
+	if (killIndex <= masterList->numberOfDCs) //Making sure the number to kill is not higher than the number of open processes
 	{
 		killPID = masterList->dc[killIndex - 1].dcProcessID; //Get the PID from the shared memory 
 
@@ -153,7 +174,14 @@ void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFi
 		}
 	}
 }
-
+// FUNCTION : printCurrentTime
+// DESCRIPTION : This function will generate the time and date formatted to the project standards.
+//				 It will then print this time and date to the logfile.
+//
+// PARAMETERS :	FILE* logfile : A pointer to the log file for logging what was killed and when.
+//				
+// RETURNS : Void
+//
 void printCurrentTime(FILE* logFile)
 {
 	time_t currTime;
