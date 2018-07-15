@@ -15,7 +15,7 @@ void printCurrentTimeToFile(FILE* logFile);
 
 int main()
 {
-	srand((unsigned)time(NULL)); //Initiate the random number generator 
+	srand((unsigned)time(NULL)); // Initiate the random number generator 
 
 	FILE *logFile = fopen(DC_LOG_FILE_PATH, "w");
 	time_t currentTime = time(0);
@@ -24,38 +24,36 @@ int main()
 	int sharedMemoryID, queueID, randomWODNumber;
 	MasterList *masterList;
 
-	if (logFile) //If the log file was opened, continue on
+	if (logFile) // If the log file was opened, continue on
 	{
-		//Get and check the Shared Memory, returning an error if unable to obtain it
+		// Get and check the Shared Memory, returning an error if unable to obtain it
 		if ((sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY)) == -1) { return 1; }
 
-		//Get and check the Queue, returning an error if unable to obtain it
+		// Get and check the Queue, returning an error if unable to obtain it
 		if ((messageQueueKey = ftok(QUEUE_LOCATION, QUEUE_KEY)) == -1) { return 1; }
 
-		//Below is getting a Shared Memory ID to use and error checking at the same time
+		// Below is getting a Shared Memory ID to use and error checking at the same time
 		if ((sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), 0)) == -1)
 		{
-			//Trying to open the Shared Memory key 100 times, breaking if unsuccessful
+			// Trying to open the Shared Memory key 100 times, breaking if unsuccessful
 			for (int x = 0; x < 99; x++)
 			{
 				sleep(10);
 				if ((sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), 0)) != -1) { break; }
 			}
 		}
-		masterList = (MasterList*)shmat(sharedMemoryID, NULL, 0);	//Attaching to the Shared Memory data
+		masterList = (MasterList*)shmat(sharedMemoryID, NULL, 0);	// Attaching to the Shared Memory data
 
 		if (masterList == NULL) { return 1; }
 
-		while (1) //Forever loop, will break when msgQ is gone
+		while (1) // Forever loop, will break when msgQ is gone
 		{
-			sleep((rand() % 20) + 10);
+			sleep((rand() % 20) + 10);	// Sleep for between 10 and 30 seconds before attempting another action
 
 			if ((queueID = msgget(messageQueueKey, 0)) == -1)
 			{
 				printCurrentTimeToFile(logFile);
-				fprintf(logFile, "DX detected that msgQ is gone - assuming DR/DCs done");
-				shmdt(masterList);
-				fclose(logFile);
+				fprintf(logFile, "DX detected that msgQ is gone - assuming DR/DCs done"); 
 				break;
 			}
 
@@ -72,8 +70,7 @@ int main()
 				else //Below is where we log the what were doing
 				{
 					printCurrentTimeToFile(logFile);
-					fprintf(logFile, "DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting");
-					shmdt(masterList);
+					fprintf(logFile, "DX Deleted the msgQ - the DR/DCs can't talk anymore - exiting");
 					break;
 				}
 

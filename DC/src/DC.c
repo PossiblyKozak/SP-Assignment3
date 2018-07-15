@@ -24,7 +24,7 @@ int main()
 	queueID = msgget(queueKey, 0);						// Get the queue ID
 	while (queueID == -1)								// repeat until a Message Queue is found
 	{
-		sleep(DEFAULT_SLEEP_LENGTH);
+		sleep(DC_SLEEP_LENGTH);
 		queueID = msgget(queueKey, IPC_CREAT | 0660);	// If a Message Queue wasn't found, create one
 	}
 
@@ -34,7 +34,7 @@ int main()
 	while ((queueID = msgget(queueKey, 0)) != -1)
 	{
 		sleep((rand() % 20) + 10);						// Random number generated from 10 to 30 for sleep in seconds
-		messageValue = rand() % NUMBER_OF_MESSAGES;
+		messageValue = rand() % NUM_MESSAGE_IDS;
 		if (messageValue == MACHINE_OFFLINE)
 		{
 			if (sendMessage(queueID, messageValue) == -1) { return 1; }

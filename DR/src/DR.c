@@ -17,7 +17,7 @@
 void interpretMessage(MasterList*, QueueMessage, FILE*);
 void interpretMessageCode(MasterList *, QueueMessage, int, FILE*);
 int  getSharedMemory(size_t);
-int  getMessageQueue();
+int  getMessageQueue(key_t*);
 void isCurrentlyActivePID(int*, bool*, MasterList*, int);
 void printCurrentTimeToFile(FILE*);
 void removeDCByPID(MasterList*, int);
@@ -25,30 +25,30 @@ void killIdleProcesses(MasterList*, FILE*);
 
 int main(int argc, char *argv[])
 {
+	key_t messageKey;
 	int messageID, sharedMemoryID;							// Message ID, Shared Memory ID
 	int sizeOfData = sizeof(QueueMessage) - sizeof(long);	// The size of the message chunk to be received
 	MasterList *masterList;									// The pointer to the MasterList stored in shared memory
 	bool isQueueValid = true;								// Boolean for the Queue check loop
 
+
 	FILE *logFile = fopen(DR_LOG_FILE_PATH, "w");			// Open the Log File
 
 	QueueMessage receivedMessage;
 
-	sharedMemoryID = getSharedMemory(sizeof MasterList);
-	messageID = getMessageQueue();
-
+	sharedMemoryID = getSharedMemory(sizeof(MasterList) + 1);
+	messageID = getMessageQueue(&messageKey);
 	// if either the Shared Memory or Message Queue creation failed, exit the program with an error code
-	if (sharedMemoryID == -1 || messageID == -1) { return 1; }
+	if (sharedMemoryID == -1 || messageID == -1) { 	return 1; }
 
-	// Generate a pointer to the master list from the Shared Memory, return if not successful
-	if ((masterList = (MasterList*)shmat(sharedMemoryID, NULL, 0)) == -1) { return 1; }
-
+	// Generate a pointer to the master list from the Shared Memory
+	masterList = (MasterList*)shmat(sharedMemoryID, NULL, 0);	
 	// Set the known values of the Master List
 	masterList->messageQueueID = messageID;
 	masterList->numberOfDCs = 0;
 
 	// give some time before starting so some DCs can be started
-	sleep(10);
+	sleep(DR_SLEEP_LENGTH);
 
 	while (isQueueValid) // run through while there the queue exists and there are one or more active DCs
 	{
@@ -72,12 +72,14 @@ int main(int argc, char *argv[])
 	}
 
 	// Print final message in the log file and close the file
+	printCurrentTimeToFile(logFile);
 	fprintf(logFile, "All DCs have gone offline or terminated - DR TERMINATING");
 	fclose(logFile);
 
 	// Close the Message Queue and the Shared Memory
 	msgctl(messageID, IPC_RMID, NULL);
 	shmctl(sharedMemoryID, IPC_RMID, NULL);
+	shmdt(masterList);
 	return 0;
 }
 
@@ -183,7 +185,7 @@ void interpretMessageCode(MasterList *masterList, QueueMessage receivedMessage, 
 	}
 	default:
 		// Should there be some kind of other index received, output UKNOWN COMMAND to the log file
-		fprintf(logFile, "UNKNOWN COMMAND %.2d [%d]\n", masterListIndex + 1, pID);
+		fprintf(logFile, "UNKNOWN COMMAND %.2d [%d]\n", masterListIndex + 1, receivedMessage.pID);
 	}
 }
 
@@ -197,23 +199,20 @@ int getSharedMemory(size_t size)
 	// RETURNS		: 
 	//    int				: The ID for accessing the Shared Memory location
 
-	key_t sharedMemoryKey;
-	int sharedMemoryID = -1;
+	int sharedMemoryID;
 
-	// Get the Shared Memory token, continue only if successful
-	if ((sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY)) != -1)
-	{
-		// Check to see if Shared Memory already exists
-		if (sharedMemoryID = shmget(sharedMemoryKey, size, 0) == -1)
-		{
-			// Shared Memory doesn't exist yet thus create it
-			sharedMemoryID = shmget(sharedMemoryKey, size, (IPC_CREAT | 0660));
-		}
-	}
-	return sharedMemoryID;
+	// Get the Shared Memory key
+   	key_t sharedMemoryKey = ftok(SHARED_MEM_LOCATION, SHARED_MEM_KEY); 
+   	// Check to see if Shared Memory already exists 
+   	if ((sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), 0)) == -1)
+   	{
+   		// Shared Memory doesn't exist yet thus create it
+     	sharedMemoryID = shmget(sharedMemoryKey, sizeof(MasterList), (IPC_CREAT | 0660));
+   	}
+   	return sharedMemoryID;
 }
 
-int getMessageQueue(void)
+int getMessageQueue(key_t *messageKey)
 {
 	// FUNCTION		: getMessageQueue
 	// DESCRIPTION	: This function gets/opens a Message Queue location given by msgget() using the constants
@@ -223,14 +222,13 @@ int getMessageQueue(void)
 	// RETURNS		: 
 	//    int				: The ID for accessing the Message Queue location
 
-	key_t messageKey;
 	int messageID = -1;
 
-	// Get the Message Queue token, return if not successful
-	if ((messageKey = ftok(QUEUE_LOCATION, QUEUE_KEY)) == -1)
+	// Get the Message Queue token
+	if ((*messageKey = ftok(QUEUE_LOCATION, QUEUE_KEY)) != -1)
 	{
 		// Create a new Message Queue using the generated key
-		messageID = msgget(messageKey, IPC_CREAT | 0660);
+		messageID = msgget(*messageKey, IPC_CREAT | 0660);
 	}
 	return messageID;
 }
@@ -251,9 +249,9 @@ void isCurrentlyActivePID(int *masterListIndex, bool *isRecognized, MasterList* 
 	// RETURNS		: 
 	//    VOID
 
-	for (; *masterListIndex < MAX_DC_ROLES && !(*isRecognized); (*masterListIndex)++)
+	for (; *masterListIndex < MAX_DC_ROLES && !(*isRecognized) && *masterListIndex < masterList->numberOfDCs; (*masterListIndex)++)
 	{
-		if (masterList->dc[*masterListIndex].dcProcessID != NULL)
+		if (masterList->dc[*masterListIndex].dcProcessID != 0)
 		{
 			if (masterList->dc[*masterListIndex].dcProcessID == pID)
 			{
@@ -261,6 +259,7 @@ void isCurrentlyActivePID(int *masterListIndex, bool *isRecognized, MasterList* 
 				// and change the isRecognised flag to true to represent that is was previously in the list
 				masterList->dc[*masterListIndex].lastTimeHeardFrom = (int)time(NULL);
 				*isRecognized = true;
+				break;
 			}
 		}
 		else { break; }
