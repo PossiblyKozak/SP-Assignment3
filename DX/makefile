@@ -1,10 +1,9 @@
 #
 # this makefile will compile and and all source
-# found in the ~/Documents/workspace/Conestoga/PROG1970/Assignment1 directory.  This represents a sample
-# development directory structure and project
+# found in the ~/SP-Assignment3/DX directory. 
 #
 # =======================================================
-#                  Assignment1
+#                  Assignment #3
 # =======================================================
 
 BIN_DIR = ../Common/bin

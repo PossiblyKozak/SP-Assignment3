@@ -1,16 +1,17 @@
-//FILE :DX.c
-//PROJECT : PROG1970 - Assignment #3
-//PROGRAMMER : Attila Katona and Alex Kozak
-//FIRST VERSION : 2018-06-16
-//DESCRIPTION :	This file is the data corruptor and its purpose is to gain knowledge of the 
-//				resources and processes involved in the program. It will randomly decide
-//				between a set of allowable corruptions, including : Kill a DC process
-//																	Delete the message queue.
-//
+/*	FILE			: DX.c
+ *	PROJECT			: PROG1970 - Assignment #3
+ *	PROGRAMMER		: Alex Kozak and Attila Katona
+ *	FIRST VERSION	: 2018-07-14
+ *	DESCRIPTION		: This file is the data corruptor and its purpose is to gain knowledge of the 
+ *					  resources and processes involved in the program. It will randomly decide
+ *				 	  between a set of allowable corruptions, including : 
+ *							--> Kill a DC process
+ *							-->	Delete the message queue.
+ */
 #include "../../Common/inc/Common.h"
 
-void wheelOfDestruction(int number, MasterList *p, FILE *logFile);
-void printCurrentTime(FILE* logFile);
+void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFile);
+void printCurrentTimeToFile(FILE* logFile);
 
 int main()
 {
@@ -51,7 +52,7 @@ int main()
 
 			if ((queueID = msgget(messageQueueKey, 0)) == -1)
 			{
-				printCurrentTime(logFile);
+				printCurrentTimeToFile(logFile);
 				fprintf(logFile, "DX detected that msgQ is gone - assuming DR/DCs done");
 				shmdt(masterList);
 				fclose(logFile);
@@ -64,13 +65,13 @@ int main()
 			{
 				if ((msgctl(queueID, IPC_RMID, NULL) == -1))
 				{
-					printCurrentTime(logFile);
+					printCurrentTimeToFile(logFile);
 					fprintf(logFile, "DX Failed to delete the msgQ, must already be deleted - exiting");
 					break;
 				}
 				else //Below is where we log the what were doing
 				{
-					printCurrentTime(logFile);
+					printCurrentTimeToFile(logFile);
 					fprintf(logFile, "DX Deleted the msgQ - the DR/DCs cant talk anymore - exiting");
 					shmdt(masterList);
 					break;
@@ -87,20 +88,20 @@ int main()
 	return 0;
 }
 
-// FUNCTION : wheelOfDestruction
-// DESCRIPTION : This is the main processing function. It will take a random number and peform the
-//				 action that the number represents. All numbers represent killing of a process.
-//				 The random number passed is what determiens which process of DC to kill.
-//
-// PARAMETERS :	int randomWODnumber : Holds a random integer number. 1 to 20, except 0,8,10,17,19
-//				MasterList* masterlist : The pointer to a struct that holds the process IDs of the open programs
-//										 that need to be killed. DC processes only.
-//				FILE* logfile : A pointer to the log file for logging what was killed and when.
-//				
-// RETURNS : Void
-//
 void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFile)
 {
+	// FUNCTION		: wheelOfDestruction
+	// DESCRIPTION	: This is the main processing function. It will take a random number and peform the
+	//				  action that the number represents. All numbers represent killing of a process.
+	//				  The random number passed is what determiens which process of DC to kill.
+	// PARAMETERS	:	
+	//	  int			randomWODnumber : Holds a random integer number. 1 to 20, except 0,8,10,17,19
+	//	  MasterList*	masterlist		: The pointer to a struct that holds the process IDs of the open programs
+	//									  that need to be killed. DC processes only.
+	//	  FILE*		    logfile			: A pointer to the log file for logging what was killed and when.
+	// RETURNS		: 
+	//    VOID
+	
 	int killIndex = 0;
 	pid_t killPID = 0;
 
@@ -169,21 +170,21 @@ void wheelOfDestruction(int randomWODNumber, MasterList *masterList, FILE *logFi
 
 		if (!kill(killPID, SIGHUP))
 		{
-			printCurrentTime(logFile);
+			printCurrentTimeToFile(logFile);
 			fprintf(logFile, "WOD Action %.2d - D-%.2d [%d] TERMINATED\n", randomWODNumber, killIndex, (int)killPID);
 		}
 	}
 }
-// FUNCTION : printCurrentTime
-// DESCRIPTION : This function will generate the time and date formatted to the project standards.
-//				 It will then print this time and date to the logfile.
-//
-// PARAMETERS :	FILE* logfile : A pointer to the log file for logging what was killed and when.
-//				
-// RETURNS : Void
-//
-void printCurrentTime(FILE* logFile)
+
+void printCurrentTimeToFile(FILE* logFile)
 {
+	// FUNCTION		: printCurrentTime
+	// DESCRIPTION	: This function will generate the time and date formatted to the project standards.
+	//				  It will then print this time and date to the logfile.
+	// PARAMETERS	:	
+	//	    FILE* logfile	: A pointer to the log file for logging what was killed and when.
+	// RETURNS		: 
+	//		Void
 	time_t currTime;
 	struct tm* currTimeInfo;
 	char formattedTimeString[28];
